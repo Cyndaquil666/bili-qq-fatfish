@@ -1,4 +1,6 @@
-# FatFish / 大肥鱼
+# bili-qq-fatfish · 大肥鱼
+
+> 一个同时生活在 B 站和 QQ 的开源 AI 角色引擎：共享人格、记忆与写操作闸门。
 
 **一个实体，两种生活。**  
 同一个 Python 进程里，让一个角色同时拥有 B 站生活和 QQ 生活，共享人格、记忆、状态和写操作闸门。
@@ -158,7 +160,7 @@ python fish.py run
 - [dsh-bili-scroll](https://github.com/c1overzz/dsh-bili-scroll) / [dsh-bili-humanism](https://github.com/InariNGT-Ofiicial/dsh-bili-humanism) — DSH 的 B 站内容层
 - [AstrBot](https://github.com/AstrBotDevs/AstrBot) / [MaiBot](https://github.com/Mai-with-u/MaiBot) — 通用聊天 bot 框架
 
-FatFish 的差异点是：**B 站 + QQ 共用一个实体、一份记忆、一套写策略**，而不是两个独立 bot。
+bili-qq-fatfish 的差异点是：**B 站 + QQ 共用一个实体、一份记忆、一套写策略**，而不是两个独立 bot。
 
 ## 测试
 
