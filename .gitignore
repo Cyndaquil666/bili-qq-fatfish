@@ -1,0 +1,19 @@
+﻿# secrets and runtime state
+.env
+secrets/
+var/
+runtime/
+vendor/
+assets/
+config.yaml
+*.log
+*.db
+*.db-wal
+*.db-shm
+*.pid
+*.lock
+__pycache__/
+*.pyc
+.venv*/
+.tmp/
+.pytest_cache/

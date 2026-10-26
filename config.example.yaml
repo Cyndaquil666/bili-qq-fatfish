@@ -1,0 +1,151 @@
+# 大肥鱼 · 配置
+# 复制成 config.yaml 后修改。密钥建议放 .env（见 .env.example），不要提交到 git。
+
+mode: observe          # observe=只看不写；live=按额度执行（需要 safety.live_ack=true）
+
+safety:
+  live_ack: false      # 确认你真的想让它在公开平台写东西，再改成 true
+  minor_mode: false    # 18 岁恋爱向；露骨性内容仍会被写闸门拦截
+  quiet_hours:         # 这段时间不互动、不发群消息
+    - ["00:30", "08:30"]
+  risk_pause_hours: 12 # 触发 B 站风控后暂停多久
+  max_daily_llm_tokens: 1500000
+
+logging:
+  level: INFO
+
+llm:
+  base_url: https://api.deepseek.com/v1
+  model: deepseek-chat
+  vision_model: deepseek-v4-flash-vision-exp
+  vision_enabled: true
+  vision_max_tokens: 220
+  api_key: env:FISH_LLM_API_KEY
+  temperature: 0.9
+  max_tokens: 900
+  timeout: 90
+  retries: 2
+  json_mode: true
+
+bilibili:
+  enabled: true
+  cookie_file: secrets/bilibili.json
+  impersonate: chrome131
+  min_call_interval: 1.2
+  call_timeout: 30
+  favorite_media_id: 0   # 收藏夹 id；0=不收藏。用 doctor 可以看到你的收藏夹
+  avoid_keywords: [震惊, 必看, 速看, 最后有惊喜, 全网首发, 天花板, 封神, 逆天, 保姆级, 家人们]
+  browse:
+    active_hours: ["09:30", "23:30"]
+    min_gap_minutes: 60
+    max_gap_minutes: 60
+    batch_size: 2
+    max_videos_per_day: 60
+    max_comment_worthy_per_day: 30
+    candidate_limit: 18
+    min_pick_score: 56
+    exploration_rate: 0.12
+    seen_days: 21
+    fetch_comments: 18
+    fetch_danmaku: 90
+    subtitle_chars: 5000
+  other_fish:
+    enabled: true
+    names: ["大肥鱼", "肥鱼", "鱼鱼"]
+    min_video_score: 70
+    max_per_day: 8
+    gap_minutes: 20
+  join_comments:
+    enabled: true
+    min_video_score: 65
+    max_per_day: 6
+    gap_minutes: 20
+  write:
+    enabled_actions: [like, danmaku, comment]
+    daily_caps: {like: 0, coin: 0, favorite: 0, danmaku: 0, comment: 0, follow: 0}
+    weekly_caps: {comment: 0, follow: 0}
+    min_score: {like: 60, coin: 86, favorite: 80, danmaku: 68, comment: 65, follow: 90}
+    min_gap_minutes: {like: 0, coin: 0, favorite: 0, danmaku: 0, comment: 0, follow: 0}
+    comment_mention: "主人B站"
+  comments:
+    enabled: true
+    check_minutes: 60
+    max_threads: 5
+    reply_gap_minutes: 60
+    max_replies_per_day: 6
+    reply_to_outsiders: true
+    user_name: "主人B站"
+  notifications:
+    enabled: true
+    check_minutes: 1
+    reply_to_user: true
+  dm:
+    enabled: true
+    user_mid: 0
+    check_seconds: 15
+  proactive:
+    enabled: true
+    first_delay_minutes: 10
+    min_gap_minutes: 45
+    max_gap_minutes: 150
+    max_per_day: 4
+    min_idle_minutes: 60
+    active_hours: ["09:00", "23:30"]
+
+qq:
+  enabled: true
+  onebot:
+    ws_url: ws://127.0.0.1:3001
+    access_token: env:FISH_ONEBOT_TOKEN
+    self_id: 0            # 0=启动后自动获取
+    reconnect_max_seconds: 60
+  groups: []              # 白名单：填群号才会发言；空=只听不说
+  private_users: []       # 只回这些 QQ 号的私聊
+  private_allow_strangers: true
+  stranger_max_msgs_per_day: 30
+  stranger_min_gap_seconds: 30
+  stranger_min_confidence: 0.72
+  private_debounce_seconds: 0
+  private_max_msgs_per_day: 0
+  private_min_gap_seconds: 0
+  proactive:
+    enabled: true
+    first_delay_minutes: 5
+    min_gap_minutes: 120
+    max_gap_minutes: 240
+    max_per_day: 4
+    min_idle_minutes: 90
+    active_hours: ["09:30", "23:30"]
+  active_hours: ["08:30", "00:30"]
+  debounce_seconds: 5
+  context_messages: 24
+  context_minutes: 20
+  max_context_chars: 3000
+  min_gap_seconds: 0
+  max_msgs_per_day_per_group: 200
+  max_msgs_per_day_total: 200
+  max_msgs_per_window: 20
+  window_seconds: 600
+  max_chars_per_msg: 58
+  max_parts: 2
+  min_confidence: 0.68
+  min_confidence_at: 0.52
+  reply_cooldown_seconds: 5
+  stickers:
+    enabled: true
+    dir: assets/stickers
+    chance: 0.15
+    max_per_day: 3
+  ignore_keywords: ["/", "#"]
+  blocked_users: []
+
+identity:
+  persona_file: persona.yaml
+  display_name: 大肥鱼
+
+paths:
+  data_dir: var
+  log_dir: var/logs
+  journal_dir: var/journal
+  report_dir: var/reports
+  db_file: var/fish.db

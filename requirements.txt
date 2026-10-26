@@ -1,0 +1,6 @@
+# Runtime roots (transitive deps are resolved by tools/setup_vendor.py).
+bilibili-api-python==17.4.2
+curl-cffi==0.16.3
+websockets==17.2
+httpx==0.28.1
+PyYAML==6.0.3
