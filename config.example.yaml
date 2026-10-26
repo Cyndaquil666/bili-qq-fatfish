@@ -66,7 +66,7 @@ bilibili:
     weekly_caps: {comment: 0, follow: 0}
     min_score: {like: 60, coin: 86, favorite: 80, danmaku: 68, comment: 65, follow: 90}
     min_gap_minutes: {like: 0, coin: 0, favorite: 0, danmaku: 0, comment: 0, follow: 0}
-    comment_mention: "主人B站"
+    comment_mention: "你的B站昵称"
   comments:
     enabled: true
     check_minutes: 60
@@ -74,7 +74,8 @@ bilibili:
     reply_gap_minutes: 60
     max_replies_per_day: 6
     reply_to_outsiders: true
-    user_name: "主人B站"
+    owner_mid: 0
+    user_name: "你的B站昵称"
   notifications:
     enabled: true
     check_minutes: 1

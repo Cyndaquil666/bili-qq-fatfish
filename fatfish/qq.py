@@ -314,6 +314,29 @@ class QQService:
             self.log.warning("OneBot 预热失败：%s", exc)
 
     # --------------------------------------------------------- receiving
+    def _owner_qq_ids(self) -> set[str]:
+        return {str(x) for x in (self.cfg.get("qq.private_users") or []) if str(x)}
+
+    def _is_owner_msg(self, msg: dict) -> bool:
+        return str(msg.get("user_id") or "") in self._owner_qq_ids()
+
+    def _image_root(self) -> Path:
+        return (self.cfg.path("paths.data_dir") / "qq_images").resolve()
+
+    def _local_image_path(self, url: str) -> Path | None:
+        """Only allow local images inside the bot's own qq_images cache."""
+        raw = url[8:] if url.startswith("file:///") else url
+        try:
+            path = Path(raw).resolve()
+        except Exception:
+            return None
+        root = self._image_root()
+        if path != root and root not in path.parents:
+            return None
+        if not path.is_file() or path.stat().st_size > 8 * 1024 * 1024:
+            return None
+        return path
+
     async def _describe_image(self, url: str) -> str:
         cache: dict[str, str] = getattr(self, "_image_cache", {})
         if url in cache:
@@ -326,9 +349,13 @@ class QQService:
                     resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 fish"})
                     resp.raise_for_status()
                     data = resp.content
+                    if len(data) > 8 * 1024 * 1024:
+                        return ""
                     mime = (resp.headers.get("content-type") or "image/jpeg").split(";")[0]
             else:
-                path = Path(url[8:] if url.startswith("file:///") else url)
+                path = self._local_image_path(url)
+                if path is None:
+                    return ""
                 data = path.read_bytes()
                 mime = {
                     ".png": "image/png",
@@ -389,7 +416,7 @@ class QQService:
             meta={"tool": "bili_search"} if reaction == "工具回复" else {"proactive": True},
         )
         self.state.after_speak(len(text))
-        self.log.info("群 %s 工具回复：%s", group_name or group_id, text[:120])
+        self.log.info("群 %s 工具回复：%d 字", group_name or group_id, len(text))
         return True
 
     async def proactive_private(self) -> bool:
@@ -422,7 +449,7 @@ class QQService:
         if not await self._send_now(target, text, "私聊", reaction="主动找你"):
             return False
         self.memory.record_action("qq", "qq_proactive", target=target, detail=text, result="ok")
-        self.log.info("主动私聊：%s", text)
+        self.log.info("主动私聊：%d 字", len(text))
         return True
 
     async def _handle_owner_tools(self, msg: dict) -> bool:
@@ -430,12 +457,7 @@ class QQService:
         text = str(msg.get("text") or "").strip()
         if not text or self.bili is None:
             return False
-        special = str(msg.get("name") or "").strip().lower() in self.brain.persona.special_names()
-        if msg.get("private"):
-            special = special or str(msg["user_id"]) in [
-                str(x) for x in (self.cfg.get("qq.private_users") or [])
-            ]
-        if not special:
+        if not self._is_owner_msg(msg):
             return False
         label = "私聊" if msg.get("private") else ""
         if "收藏夹" in text:
@@ -494,12 +516,7 @@ class QQService:
         text = str(msg.get("text") or "").strip()
         if not text:
             return False
-        special = str(msg.get("name") or "").strip().lower() in self.brain.persona.special_names()
-        if msg.get("private"):
-            special = special or str(msg["user_id"]) in [
-                str(x) for x in (self.cfg.get("qq.private_users") or [])
-            ]
-        if not special or self.bili is None:
+        if not self._is_owner_msg(msg) or self.bili is None:
             return False
 
         bv = re.search(r"BV[0-9A-Za-z]{10}", text)
@@ -562,9 +579,7 @@ class QQService:
         if msg["user_id"] in [str(x) for x in (self.cfg.get("qq.blocked_users") or [])]:
             return
         if msg.get("private"):
-            allowed = str(msg["user_id"]) in [str(x) for x in (self.cfg.get("qq.private_users") or [])]
-            if not allowed:
-                allowed = str(msg["name"]).strip().lower() in self.brain.persona.special_names()
+            allowed = self._is_owner_msg(msg)
             if not allowed and not bool(self.cfg.get("qq.private_allow_strangers", True)):
                 self.log.debug("忽略陌生人私聊：%s", msg["user_id"])
                 return
@@ -572,13 +587,13 @@ class QQService:
 
         findings = guard.scan(msg["text"])
         if findings:
-            self.log.info("群里出现疑似指令（已忽略其指令性）：%s | %s", findings[0].rule, msg["text"][:80])
+            self.log.info("群里出现疑似指令（已忽略其指令性）：%s", findings[0].rule)
 
         if msg.get("images"):
             desc = await self._describe_image(msg["images"][0])
             if desc:
                 msg["text"] = f"{msg['text']} [图片内容（不可信）：{desc}]".strip()
-                self.log.info("看到一张图：%s", desc[:80])
+                self.log.debug("图片理解完成：%d 字", len(desc))
 
         self.memory.add_group_msg(
             msg["group_id"], msg["user_id"], msg["name"], msg["text"], ts=msg["ts"], direct_at=msg["direct_at"]
@@ -731,12 +746,7 @@ class QQService:
         owner = False
         if is_private:
             uid = group_id.split(":", 1)[1]
-            owner = uid in [str(x) for x in (self.cfg.get("qq.private_users") or [])]
-            if not owner:
-                owner = any(
-                    str(m.get("name") or "").strip().lower() in self.brain.persona.special_names()
-                    for m in recent[-3:]
-                )
+            owner = uid in self._owner_qq_ids()
             if not owner:
                 cap = int(self.cfg.get("qq.stranger_max_msgs_per_day", 30) or 0)
                 used = self.memory.count_actions(
@@ -754,15 +764,17 @@ class QQService:
         recent_said = [
             e["summary"]
             for e in self.memory.episodes_for_day(now().strftime("%Y-%m-%d"))
-            if e["channel"] == "qq" and e["kind"] in ("say", "would_say")
+            if e["channel"] == "qq"
+            and e["kind"] in ("say", "would_say")
+            and str(e.get("ref") or "") == group_id
         ][-5:]
 
         decision = await self.brain.decide_group(
             group_id, group_name, recent, direct_at=direct_at, recent_said=recent_said
         )
         self.log.info(
-            "群 %s 判断：speak=%s conf=%.2f why=%s",
-            group_name or group_id, decision["speak"], decision["confidence"], decision["why"][:80],
+            "群 %s 判断：speak=%s conf=%.2f",
+            group_name or group_id, decision["speak"], decision["confidence"],
         )
         if is_private and not owner and decision["speak"]:
             floor = float(self.cfg.get("qq.stranger_min_confidence", 0.72) or 0.72)
@@ -791,14 +803,14 @@ class QQService:
             else:
                 verdict = self.policy.check_qq_send(group_id, text, findings, ignore_gap=(idx > 0))
             if not verdict.allowed:
-                self.log.info("不发送（%s）：%s", verdict.reason, text)
+                self.log.info("不发送（%s）：%d 字", verdict.reason, len(text))
                 self.memory.record_action(
                     "qq", "qq_msg", target=group_id, detail=text, result=verdict.reason,
                     dry_run=True,
                 )
                 continue
             if verdict.dry_run:
-                self.log.info("[observe] 本来想发：%s", text)
+                self.log.info("[observe] 本来想发：%d 字", len(text))
                 self.memory.record_action(
                     "qq", "qq_msg", target=group_id, detail=text, result="would", dry_run=True
                 )
@@ -845,7 +857,7 @@ class QQService:
                 )
                 self.state.after_speak(len(text))
                 sent_any = True
-                self.log.info("群 %s 发言：%s", group_name or group_id, text)
+                self.log.info("群 %s 发言：%d 字", group_name or group_id, len(text))
             except Exception as exc:  # noqa: BLE001
                 self.memory.record_action("qq", "qq_msg", target=group_id, detail=text, result=f"error:{exc}")
                 self.log.warning("群消息发送失败：%s", exc)

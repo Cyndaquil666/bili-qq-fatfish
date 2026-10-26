@@ -262,7 +262,7 @@ class Runtime:
         )
         self.memory.record_action("bilibili", "bili_dm_proactive", target=str(mid), detail=text, result="ok")
         self.state.after_speak(len(text))
-        self.log.info("B 站主动私信：%s", text)
+        self.log.info("B 站主动私信：%d 字", len(text))
         return True
 
     async def bili_dm_loop(self) -> None:
@@ -371,7 +371,7 @@ class Runtime:
         )
         self.memory.record_action("bilibili", "bili_dm", target=str(mid), detail=reply, result="ok")
         self.state.after_speak(len(reply))
-        self.log.info("B 站私信回复：%s", reply)
+        self.log.info("B 站私信回复：%d 字", len(reply))
 
     def _comment_worthy_today(self) -> int:
         threshold = float(self.cfg.get("bilibili.write.min_score.comment", 70))
@@ -769,11 +769,15 @@ class Runtime:
         if not fresh:
             return
         max_ts = max(int(i.get("at_time") or 0) for i in fresh)
-        user_name = str(self.cfg.get("bilibili.comments.user_name", "主人B站") or "").lower()
+        owner_mid = int(
+            self.cfg.get("bilibili.comments.owner_mid", 0)
+            or self.cfg.get("bilibili.dm.user_mid", 0)
+            or 0
+        )
         for item in sorted(fresh, key=lambda x: int(x.get("at_time") or 0)):
             if int(item.get("business_id") or 0) != 1:
                 continue
-            if str(item.get("user") or "").lower() != user_name:
+            if not owner_mid or int(item.get("user_mid") or 0) != owner_mid:
                 continue
             if not item.get("subject_id") or not item.get("source_id"):
                 continue
@@ -848,7 +852,11 @@ class Runtime:
             return
 
         rows = self.memory.my_comments(limit=int(self.cfg.get("bilibili.comments.max_threads", 5) or 5))
-        user_name = str(self.cfg.get("bilibili.comments.user_name", "主人B站") or "").lower()
+        owner_mid = int(
+            self.cfg.get("bilibili.comments.owner_mid", 0)
+            or self.cfg.get("bilibili.dm.user_mid", 0)
+            or 0
+        )
         for row in rows:
             checked = int(row.get("checked_ts") or 0)
             try:
@@ -869,8 +877,8 @@ class Runtime:
                 self.memory.mark_comment_checked(int(row["rpid"]), int(time.time()))
                 continue
 
-            user_replies = [r for r in fresh if str(r.get("user") or "").lower() == user_name]
-            outsiders = [r for r in fresh if str(r.get("user") or "").lower() != user_name]
+            user_replies = [r for r in fresh if owner_mid and int(r.get("mid") or 0) == owner_mid]
+            outsiders = [r for r in fresh if not owner_mid or int(r.get("mid") or 0) != owner_mid]
             selected = None
             is_user = False
             if user_replies:
