@@ -1,5 +1,7 @@
 # bili-qq-fatfish · 大肥鱼
 
+[English](README.en.md) | 简体中文
+
 > 一个同时生活在 B 站和 QQ 的开源 AI 角色引擎：共享人格、记忆与写操作闸门。
 
 **一个实体，两种生活。**  
